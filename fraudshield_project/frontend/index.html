@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FraudShield — Fraud Risk Command Center</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-icon">🛡️</span>
+      <span class="brand-name">FraudShield</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span>Dashboard</button>
+      <button class="nav-item" data-view="live"><span class="nav-icon">◎</span>Live Monitoring</button>
+      <button class="nav-item" data-view="transactions"><span class="nav-icon">≣</span>Transactions</button>
+      <button class="nav-item" data-view="alerts"><span class="nav-icon">▲</span>Alerts</button>
+      <button class="nav-item" data-view="cases"><span class="nav-icon">▣</span>Cases</button>
+      <button class="nav-item" data-view="score"><span class="nav-icon">＋</span>Score Transaction</button>
+      <button class="nav-item" data-view="models"><span class="nav-icon">◆</span>Models</button>
+    </nav>
+    <div class="sidebar-footer">v1.0.0 · FraudShield</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <header class="topbar">
+      <h1 id="pageTitle">Fraud Risk Command Center</h1>
+      <div class="topbar-right">
+        <div class="search"><input type="text" placeholder="Search transactions, users, cases..."></div>
+        <div class="bell">🔔<span class="badge" id="alertBadge">0</span></div>
+        <div class="user">
+          <div class="avatar">A</div>
+          <div class="user-meta"><div class="user-name">Analyst</div><div class="user-role">Super Admin</div></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ DASHBOARD VIEW ============ -->
+    <section class="view active" id="view-dashboard">
+
+      <div class="kpi-grid" id="kpiGrid"><!-- injected --></div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">Risk Score Distribution</div>
+          <div class="donut-wrap">
+            <canvas id="riskDonut"></canvas>
+            <div class="donut-legend" id="riskDonutLegend"></div>
+          </div>
+        </div>
+        <div class="card span-2">
+          <div class="card-title">Fraud Trend</div>
+          <canvas id="fraudTrendChart" height="140"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Top Risk Factors</div>
+          <div id="riskFactorsBars"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Live Transactions Feed <span class="live-dot">● LIVE</span></div>
+          <div id="liveFeedList" class="feed-list"></div>
+          <button class="link-btn" data-view="transactions">View All Live Transactions →</button>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">Alerts Overview</div>
+          <div class="alerts-overview" id="alertsOverview"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Alerts by Channel</div>
+          <div class="donut-wrap small">
+            <canvas id="channelDonut"></canvas>
+            <div class="donut-legend" id="channelDonutLegend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Model Performance (RandomForest)</div>
+          <div class="model-perf" id="modelPerf"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TRANSACTIONS VIEW ============ -->
+    <section class="view" id="view-transactions">
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title">Transactions</div>
+          <button class="btn-secondary" id="refreshTxns">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="txnTable">
+            <thead><tr>
+              <th>Txn ID</th><th>User</th><th>Amount</th><th>Channel</th>
+              <th>Location</th><th>Risk Score</th><th>Status</th><th>Time</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LIVE MONITORING VIEW (Transaction Detail) ============ -->
+    <section class="view" id="view-live">
+      <div class="detail-hint card" id="detailHint">
+        <p>Select a transaction from the <button class="link-inline" data-view="transactions">Transactions</button> tab to see its full risk breakdown here, or try one from below:</p>
+        <div id="quickTxnPicks" class="quick-picks"></div>
+      </div>
+
+      <div id="detailContent" class="hidden">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">Transaction Information</div>
+            <div class="kv-list" id="txnInfo"></div>
+          </div>
+          <div class="card center-card">
+            <div class="card-title">Risk Score</div>
+            <div class="risk-gauge-wrap">
+              <canvas id="riskGauge" width="180" height="180"></canvas>
+              <div class="risk-gauge-label">
+                <div class="risk-score-num" id="riskScoreNum">--</div>
+                <div class="risk-score-den">/100</div>
+              </div>
+            </div>
+            <div class="risk-label" id="riskLabelText">—</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Why was this flagged?</div>
+            <div id="whyFlagged" class="why-list"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">Score Breakdown</div>
+            <div class="table-wrap">
+              <table class="data-table" id="scoreBreakdownTable">
+                <thead><tr><th>Factor</th><th>Impact</th><th>Reason</th><th>Weight</th><th>Contribution</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Model Explanation (Feature Contributions)</div>
+            <canvas id="shapChart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ALERTS VIEW ============ -->
+    <section class="view" id="view-alerts">
+      <div class="grid-3">
+        <div class="card"><div class="card-title">High Risk Alerts</div><div class="big-stat red" id="alertHigh">0</div></div>
+        <div class="card"><div class="card-title">Medium Risk Alerts</div><div class="big-stat amber" id="alertMed">0</div></div>
+        <div class="card"><div class="card-title">Low Risk Alerts</div><div class="big-stat green" id="alertLow">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Flagged &amp; Under-Review Transactions</div>
+        <div class="table-wrap">
+          <table class="data-table" id="alertsTable">
+            <thead><tr><th>Txn ID</th><th>User</th><th>Amount</th><th>Risk Score</th><th>Status</th><th>Time</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CASES VIEW ============ -->
+    <section class="view" id="view-cases">
+      <div class="case-summary-row" id="caseSummaryRow"></div>
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title">Case Management</div>
+          <div class="filter-row">
+            <select id="caseStatusFilter">
+              <option value="All">All Status</option>
+              <option value="Open">Open</option>
+              <option value="In Review">In Review</option>
+              <option value="Escalated">Escalated</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="casesTable">
+            <thead><tr>
+              <th>Case ID</th><th>Priority</th><th>Status</th><th>User</th>
+              <th>Amount</th><th>Risk Score</th><th>Assigned To</th><th>Action</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCORE TRANSACTION VIEW ============ -->
+    <section class="view" id="view-score">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Score a New Transaction</div>
+          <form id="scoreForm" class="score-form">
+            <label>Amount ($)<input type="number" name="amount" value="8950" step="0.01" required></label>
+            <label>Distance from home (km)<input type="number" name="distance_km" value="1200" step="0.1" required></label>
+            <label>Velocity — txns in last 5 min<input type="number" name="velocity_5min" value="5" required></label>
+            <label>Account age (days)<input type="number" name="account_age_days" value="20" required></label>
+            <label>Hour of day (0-23)<input type="number" name="hour" min="0" max="23" value="0" required></label>
+            <label class="checkbox"><input type="checkbox" name="new_device" checked> New device</label>
+            <label class="checkbox"><input type="checkbox" name="new_payee" checked> New payee</label>
+            <label>Channel
+              <select name="channel"><option>Mobile</option><option>Web</option><option>API</option><option>POS</option></select>
+            </label>
+            <label>Location<input type="text" name="location" value="New York, USA"></label>
+            <button type="submit" class="btn-primary">Score Transaction</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-title">Result</div>
+          <div id="scoreResult" class="score-result-empty">Submit a transaction to see its real-time risk score and explanation.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MODELS VIEW ============ -->
+    <section class="view" id="view-models">
+      <div class="card">
+        <div class="card-title">Model Performance</div>
+        <div class="model-perf-large" id="modelPerfLarge"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Feature Importances</div>
+        <canvas id="importanceChart" height="220"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title">Demo Controls</div>
+        </div>
+        <p class="muted">Reset the demo database and re-seed with a fresh batch of sample transactions and cases — useful before a live presentation.</p>
+        <button class="btn-secondary" id="resetDemoBtn">Reset Demo Data</button>
+        <span id="resetStatus" class="muted"></span>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
